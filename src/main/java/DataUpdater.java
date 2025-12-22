@@ -33,9 +33,9 @@ public class DataUpdater {
         Date dc = extractDate(controlDate);
 
         // Regra: se Daily Check (Control Date) é depois do END_DATE → "In Process"
-        if (dc != null && MasterData.END_DATE != null && dc.after(MasterData.END_DATE)) {
-            status = MasterData.STATUS_IN_PROCESS;
-        }
+       // if (dc != null && MasterData.END_DATE != null && dc.after(MasterData.END_DATE)) {
+        //    status = MasterData.STATUS_IN_PROCESS;
+        //}
 
         // Normalização Closed → Confirmed_Closed
         if (status != null && status.equalsIgnoreCase(MasterData.STATUS_CLOSED)) {

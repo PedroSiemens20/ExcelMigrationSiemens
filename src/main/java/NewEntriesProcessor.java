@@ -31,13 +31,13 @@ public class NewEntriesProcessor {
         Date createdDate = extractDate(createdOn);
 
         // Regra: se Created dentro do intervalo → "In Process"
-        if (createdDate != null
-                && MasterData.START_DATE != null
-                && MasterData.END_DATE != null
-                && !createdDate.before(MasterData.START_DATE)
-                && !createdDate.after(MasterData.END_DATE)) {
-            status = MasterData.STATUS_IN_PROCESS;
-        }
+       // if (createdDate != null
+         //       && MasterData.START_DATE != null
+           //     && MasterData.END_DATE != null
+             //   && !createdDate.before(MasterData.START_DATE)
+               // && !createdDate.after(MasterData.END_DATE)) {
+          //  status = MasterData.STATUS_IN_PROCESS;
+        //}
 
         // Normalização Closed → Confirmed_Closed
         if (status != null && status.equalsIgnoreCase(MasterData.STATUS_CLOSED)) {

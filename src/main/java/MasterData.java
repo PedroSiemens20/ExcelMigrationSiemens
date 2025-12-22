@@ -8,7 +8,7 @@ public enum MasterData {
     // Nomes de Sheets
 
     public static final String STATUS_SHEET = "VIM";
-    public static final String SNAPSHOT_SHEET = "VIM-Incidents_20251130";
+    public static final String SNAPSHOT_SHEET = "VIM-Incidents_20251221";
 
     // Intervalo de datas (definido por constantes String e convertido para Date)
 
