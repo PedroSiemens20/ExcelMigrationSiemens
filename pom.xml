@@ -61,7 +61,7 @@
                             <!-- Define a Main-Class no MANIFEST do fat JAR -->
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>MainApp</mainClass>
+                                    <mainClass>ExcelCreator.MainApp</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -75,7 +75,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>MainApp</mainClass>
+                    <mainClass>ExcelCreator.MainApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>
