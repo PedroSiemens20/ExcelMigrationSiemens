@@ -1,224 +1,91 @@
 package ExcelCreator;
 
-import java.awt.FileDialog;
-import java.awt.Frame;
-import java.io.IOException;
+import javax.swing.*;
+import java.awt.*;
 import java.nio.file.*;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import javax.swing.JOptionPane;
 
 public class MainApp {
     public static void main(String[] args) {
-        // 1) Pedir ficheiros via diálogo nativo do sistema
-        Path statusSourcePath = pickExcelFileNative("Select Status Excel file");
-        if (statusSourcePath == null) {
-            System.err.println("Status file not selected. Exiting.");
+        // 1. Seleção de ficheiros
+        Path statusPath = pickFile("Select Status File");
+        Path snapPath = pickFile("Select Snapshot File");
+        if (statusPath == null || snapPath == null) return;
+
+        // 2. Inputs com preenchimento automático (Default Values)
+        String sheetName = (String) JOptionPane.showInputDialog(null,
+                "Snapshot Sheet Name:", "Input",
+                JOptionPane.QUESTION_MESSAGE, null, null,
+                MasterData.DEFAULT_SNAPSHOT_SHEET);
+
+        Date start = promptDate("Start Date (dd/MM/yyyy):", MasterData.DEFAULT_START_DATE);
+        Date end = promptDate("End Date (dd/MM/yyyy):", MasterData.DEFAULT_END_DATE);
+
+        if (start == null || end == null || sheetName == null) {
+            JOptionPane.showMessageDialog(null, "Process cancelled or invalid inputs.");
             return;
         }
 
-        Path snapshotsSourcePath = pickExcelFileNative("Select Snapshots Excel file");
-        if (snapshotsSourcePath == null) {
-            System.err.println("Snapshots file not selected. Exiting.");
-            return;
+        // 3. Processamento
+        AppConfig config = new AppConfig(start, end, sheetName);
+        ExcelReader reader = new ExcelReader(config);
+        IncidentMapper mapper = new IncidentMapper(config);
+
+        List<Map<String, Object>> statusRaw = reader.readStatusFile(statusPath.toString());
+        List<String> snapTickets = reader.readSnapshotTickets(snapPath.toString());
+
+        List<Incident> migrated = new ArrayList<>();
+        List<Incident> newEntries = new ArrayList<>();
+
+        for (Map<String, Object> row : statusRaw) {
+            Incident inc = mapper.mapFromStatusRow(row);
+            if (snapTickets.contains(inc.futureNowTicket)) {
+                migrated.add(inc);
+            } else {
+                newEntries.add(inc);
+            }
         }
 
-        // 1.1) Pedir ao utilizador o nome da sheet do Snapshot
-        String snapshotSheet = promptSnapshotSheetName(MasterData.SNAPSHOT_SHEET);
-        if (snapshotSheet == null || snapshotSheet.isBlank()) {
-            System.err.println("Snapshot sheet name not provided. Exiting.");
-            return;
-        }
-        // Guardar no ExcelCreator.MasterData para o resto do código usar
-        MasterData.setSnapshotSheet(snapshotSheet);
-
-        // 1.2) Pedir datas de início e fim (formato dd/MM/yyyy)
-        Date startDate = promptDate("Enter START date (dd/MM/yyyy)", MasterData.DATE_PATTERN_DISPLAY, MasterData.START_DATE);
-        if (startDate == null) {
-            System.err.println("Start date not provided or invalid. Exiting.");
-            return;
-        }
-
-        Date endDate = promptDate("Enter END date (dd/MM/yyyy)", MasterData.DATE_PATTERN_DISPLAY, MasterData.END_DATE);
-        if (endDate == null) {
-            System.err.println("End date not provided or invalid. Exiting.");
-            return;
-        }
-
-        // Validar intervalo (start <= end)
-        if (startDate.after(endDate)) {
-            JOptionPane.showMessageDialog(null,
-                    "Start date must be before or equal to End date.",
-                    "Invalid Date Range",
-                    JOptionPane.ERROR_MESSAGE);
-            System.err.println("Invalid date range. Exiting.");
-            return;
-        }
-
-        // Guardar no ExcelCreator.MasterData
-        MasterData.setDateRange(startDate, endDate);
-
-        // 2) Determinar pasta de destino
-        Path devExcelDir = Paths.get("src", "main", "excelFiles"); // existe no projeto
-        Path workingDir = Paths.get("").toAbsolutePath();
-        Path excelDestDir = Files.isDirectory(devExcelDir) ? devExcelDir : workingDir.resolve("excelFiles");
-
+        // 4. Output
         try {
-            Files.createDirectories(excelDestDir);
-        } catch (IOException e) {
-            System.err.println("Failed to create destination folder: " + excelDestDir);
-            e.printStackTrace();
-            return;
-        }
-
-        // 3) Nomes de destino (mantém os nomes que já usavas)
-        Path statusDestPath = excelDestDir.resolve("VIM-Incidents-Status - Copy.xlsx");
-        Path snapshotsDestPath = excelDestDir.resolve("VIM-Incidents-Snapshots - Copy.xlsx");
-
-        // 4) Copiar ficheiros
-        try {
-            Files.copy(statusSourcePath, statusDestPath, StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(snapshotsSourcePath, snapshotsDestPath, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Files copied to: " + excelDestDir.toAbsolutePath());
-        } catch (IOException e) {
-            System.err.println("Failed to copy files. Check paths and permissions.");
-            e.printStackTrace();
-            return;
-        }
-
-        // 5) Caminhos para processamento
-        String statusFile = statusDestPath.toString();
-        String snapshotsFile = snapshotsDestPath.toString();
-        String outputFile = "Migrated_Snapshot.xlsx"; // podes mudar para excelFiles se preferires
-
-        String statusSheet = MasterData.STATUS_SHEET;
-        // snapshotSheet foi pedido ao utilizador e guardado no ExcelCreator.MasterData
-        snapshotSheet = MasterData.getSnapshotSheet();
-
-        SimpleDateFormat display = new SimpleDateFormat(MasterData.DATE_PATTERN_DISPLAY);
-        System.out.println("Starting process...");
-        System.out.println("Date range: " + display.format(MasterData.START_DATE) + " -> " + display.format(MasterData.END_DATE));
-        System.out.println("Snapshot sheet: " + snapshotSheet);
-
-        try {
-            ExcelReader reader = new ExcelReader(statusFile, snapshotsFile, statusSheet, snapshotSheet);
-            List<Map<String, Object>> statusData = reader.readStatusFile();
-            List<String> snapshotTickets = reader.readSnapshotTickets();
-
-            DataUpdater updater = new DataUpdater();
-            List<Map<String, Object>> migratedData = updater.processUpdates(statusData, snapshotTickets);
-
-            NewEntriesProcessor newEntriesProcessor = new NewEntriesProcessor();
-            List<Map<String, Object>> newEntries = newEntriesProcessor.processNewEntries(statusData, snapshotTickets);
-
-            ExcelWriter writer = new ExcelWriter();
-            writer.writeToExcel(outputFile, migratedData, newEntries);
-
-            System.out.println("Process finished successfully!");
-            Path outputPath = Paths.get(outputFile).toAbsolutePath();
-            System.out.println("Output file: " + outputPath);
-
-            // 6) (Opcional) Abrir a pasta onde os ficheiros estão
-            try {
-                java.awt.Desktop.getDesktop().open(excelDestDir.toFile());
-            } catch (Exception ignore) {}
+            Path outDir = Paths.get("excelFiles");
+            Files.createDirectories(outDir);
+            String outPath = outDir.resolve("Migrated_Snapshot.xlsx").toString();
+            new ExcelWriter().write(outPath, migrated, newEntries);
+            System.out.println("Success! Saved to: " + outPath);
         } catch (Exception e) {
-            System.err.println("Processing failed:");
             e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error saving file: " + e.getMessage());
         }
     }
 
+    private static Path pickFile(String title) {
+        FileDialog dialog = new FileDialog((Frame)null, title, FileDialog.LOAD);
+        dialog.setVisible(true);
+        if (dialog.getFile() == null) return null;
+        return Paths.get(dialog.getDirectory(), dialog.getFile());
+    }
+
     /**
-     * Abre um diálogo nativo para escolher ficheiros Excel (.xlsx/.xls).
-     * Retorna o Path escolhido ou null se o utilizador cancelar.
+     * Pede uma data ao utilizador, pré-preenchendo o campo com defaultValue.
      */
-    private static Path pickExcelFileNative(String title) {
-        Frame frame = new Frame();
+    private static Date promptDate(String msg, String defaultValue) {
+        String in = (String) JOptionPane.showInputDialog(null,
+                msg, "Date Input",
+                JOptionPane.QUESTION_MESSAGE, null, null,
+                defaultValue);
+
+        if (in == null || in.trim().isEmpty()) return null;
+
         try {
-            FileDialog dialog = new FileDialog(frame, title, FileDialog.LOAD);
-            dialog.setFile("*.xlsx;*.xls"); // filtro simples (dependente do OS)
-            dialog.setVisible(true);
-
-            String dir = dialog.getDirectory();
-            String file = dialog.getFile();
-            if (dir == null || file == null) {
-                return null; // cancelado
-            }
-            Path chosen = Paths.get(dir, file);
-            // validação simples
-            String name = chosen.getFileName().toString().toLowerCase();
-            if (!(name.endsWith(".xlsx") || name.endsWith(".xls"))) {
-                System.err.println("Selected file is not an Excel file: " + chosen);
-                return null;
-            }
-            if (!Files.isReadable(chosen)) {
-                System.err.println("Selected file is not readable: " + chosen);
-                return null;
-            }
-            return chosen;
-        } finally {
-            frame.dispose();
-        }
-    }
-
-    /**
-     * Pede ao utilizador o nome da sheet do Snapshot via JOptionPane.
-     * Se o utilizador cancelar, retorna null.
-     */
-    private static String promptSnapshotSheetName(String defaultValue) {
-        String input = (String) JOptionPane.showInputDialog(
-                null,
-                "Snapshot sheet name:",
-                "Snapshot Sheet",
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                null,
-                defaultValue
-        );
-        return input;
-    }
-
-    /**
-     * Pede uma data ao utilizador com validação e formato dd/MM/yyyy.
-     * Se cancelar, retorna null.
-     */
-    private static Date promptDate(String message, String pattern, Date defaultValue) {
-        SimpleDateFormat sdf = new SimpleDateFormat(pattern);
-        sdf.setLenient(false); // validação rigorosa
-        String defaultStr = defaultValue != null ? sdf.format(defaultValue) : "";
-        while (true) {
-            String input = (String) JOptionPane.showInputDialog(
-                    null,
-                    message,
-                    "Date Input",
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    null,
-                    defaultStr
-            );
-            if (input == null) {
-                // Cancelado
-                return null;
-            }
-            input = input.trim();
-            if (input.isEmpty()) {
-                JOptionPane.showMessageDialog(null,
-                        "Please enter a date in format " + pattern,
-                        "Invalid Input",
-                        JOptionPane.WARNING_MESSAGE);
-                continue;
-            }
-            try {
-                return sdf.parse(input);
-            } catch (ParseException e) {
-                JOptionPane.showMessageDialog(null,
-                        "Invalid date. Please use format " + pattern + " (e.g., 15/12/2025)",
-                        "Invalid Date",
-                        JOptionPane.ERROR_MESSAGE);
-            }
+            SimpleDateFormat sdf = new SimpleDateFormat(MasterData.DATE_PATTERN_DISPLAY);
+            sdf.setLenient(false);
+            return sdf.parse(in.trim());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Invalid date format: " + in);
+            return null;
         }
     }
 }

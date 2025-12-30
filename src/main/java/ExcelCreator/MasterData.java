@@ -1,56 +1,15 @@
 package ExcelCreator;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-public enum MasterData {
-    INSTANCE; // Singleton, mas aqui só para manter padrão enum
-
-    // Nomes de Sheets
+public class MasterData {
     public static final String STATUS_SHEET = "VIM";
-
-    // Valor por defeito; pode ser substituído no runtime
-    public static String SNAPSHOT_SHEET = "VIM-Incidents_20251221";
-
-    // Intervalo de datas (definido por constantes String e convertido para Date)
-    private static final String START_DATE_STR = "15/12/2025";
-    private static final String END_DATE_STR = "21/12/2025";
-
-    public static Date START_DATE;
-    public static Date END_DATE;
-
+    public static final String DEFAULT_SNAPSHOT_SHEET = "VIM-Incidents_20251221";
     public static final String DATE_PATTERN_DISPLAY = "dd/MM/yyyy";
 
-    static {
-        SimpleDateFormat sdf = new SimpleDateFormat(DATE_PATTERN_DISPLAY);
-        try {
-            START_DATE = sdf.parse(START_DATE_STR);
-            END_DATE = sdf.parse(END_DATE_STR);
-        } catch (ParseException e) {
-            // Se der erro, evita NPE e mantém valores nulos
-            START_DATE = null;
-            END_DATE = null;
-        }
-    }
+    // DATAS PADRÃO (Sugestão para o utilizador)
+    public static final String DEFAULT_START_DATE = "15/12/2025";
+    public static final String DEFAULT_END_DATE = "21/12/2025";
 
-    // Getters/Setters para permitir override em runtime
-    public static String getSnapshotSheet() {
-        return SNAPSHOT_SHEET;
-    }
-
-    public static void setSnapshotSheet(String sheetName) {
-        if (sheetName != null && !sheetName.isBlank()) {
-            SNAPSHOT_SHEET = sheetName.trim();
-        }
-    }
-
-    public static void setDateRange(Date start, Date end) {
-        START_DATE = start;
-        END_DATE = end;
-    }
-
-    // Nomes de colunas (Status)
+    // Colunas Input (Ficheiro Status)
     public static final String COL_INCIDENT = "Incident";
     public static final String COL_REPORTED_BY = "Reported By";
     public static final String COL_ARE = "ARE";
@@ -59,12 +18,12 @@ public enum MasterData {
     public static final String COL_PRIORITY = "Priority";
     public static final String COL_DESCRIPTION = "Description";
     public static final String COL_STATUS = "Status";
-    public static final String COL_FUTURENOW_TICKET = "FutureNow Ticket";
     public static final String COL_TICKET_NR = "Ticket Nr.";
 
-    // Nomes de colunas (Snapshot)
-    public static final String HEADER_ID = "ID";
+    // Colunas Input (Snapshot) e Output
+    public static final String COL_FUTURENOW_TICKET = "FutureNow Ticket";
     public static final String HEADER_FUTURENOW_TICKET = "FutureNow Ticket";
+    public static final String HEADER_ID = "ID";
     public static final String HEADER_EXTERNAL_ID = "External ID";
     public static final String HEADER_ARE = "ARE";
     public static final String HEADER_CREATED_ON = "Created On";
@@ -83,14 +42,10 @@ public enum MasterData {
             HEADER_LAST_CHANGED_ON, HEADER_LAST_CHANGED_BY, HEADER_PRIORITY, HEADER_STATUS, HEADER_DESCRIPTION
     };
 
-    // Regras de Status
     public static final String STATUS_CLOSED = "Closed";
     public static final String STATUS_CONFIRM_CLOSED = "Confirm_Closed";
     public static final String STATUS_IN_PROCESS = "In Process";
-
-    //Regras de ARE
     public static final String ARE_ORA = "ORA";
     public static final String ARE_SIB = "SIB";
-    public static final String ARE_BUZ = "BUZ";;
-
+    public static final String ARE_BUZ = "BUZ";
 }

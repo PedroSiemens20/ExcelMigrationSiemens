@@ -1,110 +1,67 @@
 package ExcelCreator;
-
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
 import java.awt.Desktop;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
 
 public class ExcelWriter {
-
-    public void writeToExcel(String outputFile,
-                             List<Map<String, Object>> migratedData,
-                             List<Map<String, Object>> newEntries) {
+    public void write(String outputPath, List<Incident> migrated, List<Incident> newEntries) {
         try (Workbook workbook = new XSSFWorkbook()) {
-
-            createSheetWithData(workbook, "Migrated Data", migratedData);
-            createSheetWithData(workbook, "New Entries", newEntries);
-
-            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-                workbook.write(fos);
-            }
-            System.out.println("Process completed. Output saved to " + outputFile);
-
-            try {
-                Desktop.getDesktop().open(new File(outputFile));
-                System.out.println("Excel file opened successfully.");
-            } catch (IOException e) {
-                System.out.println("Could not open the Excel file automatically.");
-                e.printStackTrace();
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+            createSheet(workbook, "Migrated Data", migrated);
+            createSheet(workbook, "New Entries", newEntries);
+            try (FileOutputStream fos = new FileOutputStream(outputPath)) { workbook.write(fos); }
+            Desktop.getDesktop().open(new File(outputPath));
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
-    private void createSheetWithData(Workbook workbook, String sheetName, List<Map<String, Object>> data) {
-        Sheet sheet = workbook.createSheet(sheetName);
-
-        // Header style
-        Row headerRow = sheet.createRow(0);
-        CellStyle headerStyle = workbook.createCellStyle();
-        Font font = workbook.createFont();
-        font.setBold(true);
-        font.setColor(IndexedColors.WHITE.getIndex());
-        headerStyle.setFont(font);
-        headerStyle.setFillForegroundColor(IndexedColors.BLUE.getIndex());
-        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+    private void createSheet(Workbook wb, String name, List<Incident> data) {
+        Sheet sheet = wb.createSheet(name);
+        Row header = sheet.createRow(0);
+        CellStyle style = wb.createCellStyle();
+        Font font = wb.createFont(); font.setBold(true);
+        style.setFont(font);
 
         for (int i = 0; i < MasterData.OUTPUT_HEADERS.length; i++) {
-            Cell cell = headerRow.createCell(i);
-            cell.setCellValue(MasterData.OUTPUT_HEADERS[i]);
-            cell.setCellStyle(headerStyle);
+            Cell c = header.createCell(i);
+            c.setCellValue(MasterData.OUTPUT_HEADERS[i]);
+            c.setCellStyle(style);
         }
 
-        if (data == null || data.isEmpty()) {
-            Row row = sheet.createRow(1);
-            row.createCell(0).setCellValue("No data available");
-            return;
+        CellStyle dateStyle = wb.createCellStyle();
+        dateStyle.setDataFormat(wb.getCreationHelper().createDataFormat().getFormat(MasterData.DATE_PATTERN_DISPLAY));
+
+        int rowIdx = 1;
+        for (Incident inc : data) {
+            Row row = sheet.createRow(rowIdx++);
+
+            writeCell(row, 0, inc.id, null);
+            writeCell(row, 1, inc.futureNowTicket, null);
+            writeCell(row, 3, inc.are, null);
+            writeCell(row, 4, inc.createdOn, dateStyle); // Created On
+            writeCell(row, 6, inc.reportedBy, null);
+            writeCell(row, 8, inc.lastChangedOn, dateStyle); // Last Changed On
+            writeCell(row, 10, inc.priority, null);
+            writeCell(row, 11, inc.status, null);
+            writeCell(row, 12, inc.description, null);
         }
+        for(int i=0; i<MasterData.OUTPUT_HEADERS.length; i++) sheet.autoSizeColumn(i);
+    }
 
-        // Date style (display format)
-        CellStyle dateStyle = workbook.createCellStyle();
-        short fmt = workbook.getCreationHelper().createDataFormat().getFormat(MasterData.DATE_PATTERN_DISPLAY);
-        dateStyle.setDataFormat(fmt);
+    // Método auxiliar para escrever a célula dependendo do tipo de objeto
+    private void writeCell(Row row, int col, Object value, CellStyle dStyle) {
+        Cell cell = row.createCell(col);
+        if (value == null) return;
 
-        // Optional: ARE mask (e.g., leading zeros)
-        // CellStyle areNumberStyle = workbook.createCellStyle();
-        // areNumberStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("00000"));
-
-        for (int i = 0; i < data.size(); i++) {
-            Row row = sheet.createRow(i + 1);
-            Map<String, Object> rowData = data.get(i);
-
-            for (int j = 0; j < MasterData.OUTPUT_HEADERS.length; j++) {
-                String header = MasterData.OUTPUT_HEADERS[j];
-                Object value = rowData.get(header);
-                Cell cell = row.createCell(j);
-
-                if (value == null) {
-                    cell.setBlank();
-                    continue;
-                }
-
-                if (value instanceof String) {
-                    cell.setCellValue((String) value);
-                } else if (value instanceof Number) {
-                    cell.setCellValue(((Number) value).doubleValue());
-                    // if (ExcelCreator.MasterData.HEADER_ARE.equals(header)) {
-                    //     cell.setCellStyle(areNumberStyle);
-                    // }
-                } else if (value instanceof Boolean) {
-                    cell.setCellValue((Boolean) value);
-                } else if (value instanceof Date) {
-                    cell.setCellValue((Date) value);
-                    cell.setCellStyle(dateStyle);
-                } else {
-                    cell.setCellValue(value.toString());
-                }
-            }
-        }
-
-        for (int i = 0; i < MasterData.OUTPUT_HEADERS.length; i++) {
-            sheet.autoSizeColumn(i);
+        if (value instanceof Date) {
+            cell.setCellValue((Date) value);
+            if (dStyle != null) cell.setCellStyle(dStyle);
+        } else if (value instanceof Number) {
+            cell.setCellValue(((Number) value).doubleValue());
+        } else {
+            cell.setCellValue(value.toString());
         }
     }
 }
