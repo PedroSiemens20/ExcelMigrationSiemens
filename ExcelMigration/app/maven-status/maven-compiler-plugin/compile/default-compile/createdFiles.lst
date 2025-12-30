@@ -1,5 +1,5 @@
 ExcelCreator.ExcelReader$1.class
-ExcelCreator.ExcelWriter.class
+ExcelCreator.ExcelSnapshotWriter.class
 ExcelCreator.MainApp.class
 ExcelCreator.NewEntriesProcessor.class
 ExcelCreator.ExcelReader.class

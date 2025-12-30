@@ -28,21 +28,29 @@ public class NewEntriesProcessor {
         Map<String, Object> mapped = new LinkedHashMap<>();
 
         String status = canonical(row.get(MasterData.COL_STATUS));
+        String are = canonical(row.get(MasterData.COL_ARE));
+
         Object createdOn = row.get(MasterData.COL_CREATED);
         Date createdDate = extractDate(createdOn);
 
-        // Regra: se Created dentro do intervalo → "In Process"
-       // if (createdDate != null
-         //       && ExcelCreator.MasterData.START_DATE != null
-           //     && ExcelCreator.MasterData.END_DATE != null
-             //   && !createdDate.before(ExcelCreator.MasterData.START_DATE)
-               // && !createdDate.after(ExcelCreator.MasterData.END_DATE)) {
-          //  status = ExcelCreator.MasterData.STATUS_IN_PROCESS;
-        //}
+        Object controlDate = row.get(MasterData.COL_CONTROL_DATE);
+        Date dc = extractDate(controlDate);
+
+        // Regra: se Created dentro do intervalo e controlDate on > end_date → "In Process"
+        if (createdDate != null && ExcelCreator.MasterData.START_DATE != null && ExcelCreator.MasterData.END_DATE != null
+                && !createdDate.before(ExcelCreator.MasterData.START_DATE) && !createdDate.after(ExcelCreator.MasterData.END_DATE)
+                && dc.after(ExcelCreator.MasterData.END_DATE)) {
+            status = ExcelCreator.MasterData.STATUS_IN_PROCESS + " XXflagXX";
+        }
 
         // Normalização Closed → Confirm_Closed
         if (status != null && status.equalsIgnoreCase(MasterData.STATUS_CLOSED)) {
             status = MasterData.STATUS_CONFIRM_CLOSED;
+        }
+
+        //Normalizacção ORA,SIB → BUZ
+        if (are != null && (are.equalsIgnoreCase(MasterData.ARE_ORA) || are.equalsIgnoreCase(MasterData.ARE_SIB ))) {
+            are = MasterData.ARE_BUZ;
         }
 
         // Preserva tipos
@@ -51,7 +59,7 @@ public class NewEntriesProcessor {
 
         mapped.put(MasterData.HEADER_FUTURENOW_TICKET, row.get(MasterData.COL_INCIDENT));
         mapped.put(MasterData.HEADER_REPORTED_BY, row.get(MasterData.COL_REPORTED_BY));
-        mapped.put(MasterData.HEADER_ARE, row.get(MasterData.COL_ARE));
+        mapped.put(MasterData.HEADER_ARE, are);
         mapped.put(MasterData.HEADER_CREATED_ON, createdOn);
         mapped.put(MasterData.HEADER_LAST_CHANGED_ON, row.get(MasterData.COL_CONTROL_DATE));
         mapped.put(MasterData.HEADER_PRIORITY, row.get(MasterData.COL_PRIORITY));

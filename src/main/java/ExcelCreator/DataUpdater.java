@@ -26,10 +26,20 @@ public class DataUpdater {
 
         String status      = canonical(row.get(MasterData.COL_STATUS));
         String are  = canonical(row.get(MasterData.COL_ARE));
-        Object createdOn   = row.get(MasterData.COL_CREATED);
-        Object controlDate = row.get(MasterData.COL_CONTROL_DATE);
 
+        Object createdOn   = row.get(MasterData.COL_CREATED);
+        Date createdDate = extractDate(createdOn);
+
+        Object controlDate = row.get(MasterData.COL_CONTROL_DATE);
         Date dc = extractDate(controlDate);
+
+        // Regra: se Created dentro do intervalo e controlDate on > end_date → "In Process"
+        if (createdDate != null && ExcelCreator.MasterData.START_DATE != null && ExcelCreator.MasterData.END_DATE != null
+                && !createdDate.before(ExcelCreator.MasterData.START_DATE) && !createdDate.after(ExcelCreator.MasterData.END_DATE)
+                && dc.after(ExcelCreator.MasterData.END_DATE)) {
+            status = ExcelCreator.MasterData.STATUS_IN_PROCESS + " XXflagXX";
+        }
+
 
         // Normalização Closed → Confirm_Closed
         if (status != null && status.equalsIgnoreCase(MasterData.STATUS_CLOSED)) {
