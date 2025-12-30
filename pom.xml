@@ -10,6 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Compilar para Java 21 (corre bem em Java 25) -->
         <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
@@ -29,7 +30,7 @@
 
     <build>
         <plugins>
-            <!-- Compiler Plugin -->
+            <!-- Compilação -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -39,7 +40,36 @@
                 </configuration>
             </plugin>
 
-            <!-- Exec Plugin -->
+            <!-- Fat/Uber JAR com todas as dependências e Main-Class definida -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Nome final do fat JAR: target/ExcelMigration.jar -->
+                            <finalName>ExcelMigration</finalName>
+
+                            <!-- Evita alterar o pom gerado -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+
+                            <!-- Define a Main-Class no MANIFEST do fat JAR -->
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>MainApp</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- (Opcional) Correr pelo Maven: mvn exec:java -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

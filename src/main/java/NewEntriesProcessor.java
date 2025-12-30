@@ -39,9 +39,9 @@ public class NewEntriesProcessor {
           //  status = MasterData.STATUS_IN_PROCESS;
         //}
 
-        // Normalização Closed → Confirmed_Closed
+        // Normalização Closed → Confirm_Closed
         if (status != null && status.equalsIgnoreCase(MasterData.STATUS_CLOSED)) {
-            status = MasterData.STATUS_CONFIRMED_CLOSED;
+            status = MasterData.STATUS_CONFIRM_CLOSED;
         }
 
         // Preserva tipos

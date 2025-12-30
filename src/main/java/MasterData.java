@@ -1,3 +1,4 @@
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -6,15 +7,14 @@ public enum MasterData {
     INSTANCE; // Singleton, mas aqui só para manter padrão enum
 
     // Nomes de Sheets
-
     public static final String STATUS_SHEET = "VIM";
-    public static final String SNAPSHOT_SHEET = "VIM-Incidents_20251221";
+
+    // Valor por defeito; pode ser substituído no runtime
+    public static String SNAPSHOT_SHEET = "VIM-Incidents_20251221";
 
     // Intervalo de datas (definido por constantes String e convertido para Date)
-
     private static final String START_DATE_STR = "15/12/2025";
     private static final String END_DATE_STR = "21/12/2025";
-
 
     public static Date START_DATE;
     public static Date END_DATE;
@@ -33,11 +33,21 @@ public enum MasterData {
         }
     }
 
+    // Getters/Setters para permitir override em runtime
+    public static String getSnapshotSheet() {
+        return SNAPSHOT_SHEET;
+    }
 
-    // Formatos de data
+    public static void setSnapshotSheet(String sheetName) {
+        if (sheetName != null && !sheetName.isBlank()) {
+            SNAPSHOT_SHEET = sheetName.trim();
+        }
+    }
 
-
-
+    public static void setDateRange(Date start, Date end) {
+        START_DATE = start;
+        END_DATE = end;
+    }
 
     // Nomes de colunas (Status)
     public static final String COL_INCIDENT = "Incident";
@@ -73,11 +83,7 @@ public enum MasterData {
     };
 
     // Regras de Status
-
     public static final String STATUS_CLOSED = "Closed";
-    public static final String STATUS_CONFIRMED_CLOSED = "Confirmed_Closed";
+    public static final String STATUS_CONFIRM_CLOSED = "Confirm_Closed";
     public static final String STATUS_IN_PROCESS = "In Process";
-
-
 }
-
