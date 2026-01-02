@@ -13,7 +13,6 @@ public class ExcelReader {
         try (FileInputStream fis = new FileInputStream(filePath); Workbook workbook = new XSSFWorkbook(fis)) {
             Sheet sheet = workbook.getSheet(MasterData.STATUS_SHEET);
             if (sheet == null) return rows;
-
             Row headerRow = sheet.getRow(0);
             List<String> headers = new ArrayList<>();
             for (Cell cell : headerRow) headers.add(cell.getStringCellValue().trim());
@@ -34,33 +33,38 @@ public class ExcelReader {
         return rows;
     }
 
-    public List<String> readSnapshotTickets(String filePath) {
-        List<String> tickets = new ArrayList<>();
+    public Map<String, Incident> readSnapshotData(String filePath) {
+        Map<String, Incident> snapshotMap = new HashMap<>();
         try (FileInputStream fis = new FileInputStream(filePath); Workbook workbook = new XSSFWorkbook(fis)) {
             Sheet sheet = workbook.getSheet(config.snapshotSheetName);
-            if (sheet == null) return tickets;
+            if (sheet == null) return snapshotMap;
 
-            int colIndex = -1;
             Row header = sheet.getRow(0);
-            for(Cell c : header) {
-                if(c.getStringCellValue().trim().equals(MasterData.COL_FUTURENOW_TICKET)) {
-                    colIndex = c.getColumnIndex();
-                    break;
-                }
-            }
+            Map<String, Integer> colMap = new HashMap<>();
+            for (Cell c : header) colMap.put(c.getStringCellValue().trim(), c.getColumnIndex());
 
-            if (colIndex == -1) return tickets;
-
-            DataFormatter formatter = new DataFormatter();
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row r = sheet.getRow(i);
-                if (r != null) {
-                    String val = formatter.formatCellValue(r.getCell(colIndex)).trim();
-                    if (!val.isEmpty()) tickets.add(val);
-                }
+                if (r == null) continue;
+
+                Incident inc = new Incident();
+                inc.futureNowTicket = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_FUTURENOW_TICKET, -1)), evaluator));
+                if (inc.futureNowTicket == null || inc.futureNowTicket.isEmpty()) continue;
+
+                inc.id = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_ID, -1)), evaluator));
+                inc.are = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_ARE, -1)), evaluator));
+                inc.status = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_STATUS, -1)), evaluator));
+                inc.description = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_DESCRIPTION, -1)), evaluator));
+                inc.priority = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_PRIORITY, -1)), evaluator));
+                inc.reportedBy = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_REPORTED_BY, -1)), evaluator));
+                inc.createdOn = getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_CREATED_ON, -1)), evaluator);
+                inc.lastChangedOn = getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_LAST_CHANGED_ON, -1)), evaluator);
+
+                snapshotMap.put(inc.futureNowTicket, inc);
             }
         } catch (Exception e) { e.printStackTrace(); }
-        return tickets;
+        return snapshotMap;
     }
 
     private boolean isWithinRange(Date d) {
@@ -75,6 +79,7 @@ public class ExcelReader {
             case BOOLEAN: return cell.getBooleanCellValue();
             case FORMULA:
                 CellValue cv = evaluator.evaluate(cell);
+                if (cv == null) return null;
                 if (cv.getCellType() == CellType.NUMERIC) return DateUtil.isCellDateFormatted(cell) ? cell.getDateCellValue() : cv.getNumberValue();
                 return cv.getStringValue();
             default: return null;

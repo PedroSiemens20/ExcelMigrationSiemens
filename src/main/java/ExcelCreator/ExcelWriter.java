@@ -8,10 +8,12 @@ import java.util.Date;
 import java.util.List;
 
 public class ExcelWriter {
-    public void write(String outputPath, List<Incident> migrated, List<Incident> newEntries) {
+    public void writeWithIdentical(String outputPath, List<Incident> migrated, List<Incident> newEntries, List<Incident> identical) {
         try (Workbook workbook = new XSSFWorkbook()) {
             createSheet(workbook, "Migrated Data", migrated);
             createSheet(workbook, "New Entries", newEntries);
+            createSheet(workbook, "Already Up-to-Date", identical); // Nova Sheet
+
             try (FileOutputStream fos = new FileOutputStream(outputPath)) { workbook.write(fos); }
             Desktop.getDesktop().open(new File(outputPath));
         } catch (Exception e) { e.printStackTrace(); }
@@ -36,13 +38,12 @@ public class ExcelWriter {
         int rowIdx = 1;
         for (Incident inc : data) {
             Row row = sheet.createRow(rowIdx++);
-
             writeCell(row, 0, inc.id, null);
             writeCell(row, 1, inc.futureNowTicket, null);
             writeCell(row, 3, inc.are, null);
-            writeCell(row, 4, inc.createdOn, dateStyle); // Created On
+            writeCell(row, 4, inc.createdOn, dateStyle);
             writeCell(row, 6, inc.reportedBy, null);
-            writeCell(row, 8, inc.lastChangedOn, dateStyle); // Last Changed On
+            writeCell(row, 8, inc.lastChangedOn, dateStyle);
             writeCell(row, 10, inc.priority, null);
             writeCell(row, 11, inc.status, null);
             writeCell(row, 12, inc.description, null);
@@ -50,11 +51,9 @@ public class ExcelWriter {
         for(int i=0; i<MasterData.OUTPUT_HEADERS.length; i++) sheet.autoSizeColumn(i);
     }
 
-    // Método auxiliar para escrever a célula dependendo do tipo de objeto
     private void writeCell(Row row, int col, Object value, CellStyle dStyle) {
         Cell cell = row.createCell(col);
         if (value == null) return;
-
         if (value instanceof Date) {
             cell.setCellValue((Date) value);
             if (dStyle != null) cell.setCellStyle(dStyle);

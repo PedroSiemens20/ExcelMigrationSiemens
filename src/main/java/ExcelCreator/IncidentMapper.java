@@ -35,7 +35,9 @@ public class IncidentMapper {
         if (dateCreated != null && dateLastChanged != null &&
                 !dateCreated.before(config.startDate) && !dateCreated.after(config.endDate) &&
                 dateLastChanged.after(config.endDate)) {
-            finalStatus = MasterData.STATUS_IN_PROCESS + " XXflagXX";
+            finalStatus = MasterData.STATUS_IN_PROCESS;
+            incident.lastChangedOn = incident.createdOn;
+
         } else if (MasterData.STATUS_CLOSED.equalsIgnoreCase(rawStatus)) {
             finalStatus = MasterData.STATUS_CONFIRM_CLOSED;
         }
