@@ -1,4 +1,5 @@
 package ExcelCreator;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileInputStream;
@@ -6,16 +7,24 @@ import java.util.*;
 
 public class ExcelReader {
     private final AppConfig config;
-    public ExcelReader(AppConfig config) { this.config = config; }
+
+    public ExcelReader(AppConfig config) {
+        this.config = config;
+    }
 
     public List<Map<String, Object>> readStatusFile(String filePath) {
         List<Map<String, Object>> rows = new ArrayList<>();
         try (FileInputStream fis = new FileInputStream(filePath); Workbook workbook = new XSSFWorkbook(fis)) {
             Sheet sheet = workbook.getSheet(MasterData.STATUS_SHEET);
-            if (sheet == null) return rows;
+            if (sheet == null) {
+                System.out.println("ERRO: Aba " + MasterData.STATUS_SHEET + " não encontrada!");
+                return rows;
+            }
             Row headerRow = sheet.getRow(0);
             List<String> headers = new ArrayList<>();
             for (Cell cell : headerRow) headers.add(cell.getStringCellValue().trim());
+
+            System.out.println("Colunas detetadas no Status: " + headers);
 
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -25,10 +34,22 @@ public class ExcelReader {
                 for (int j = 0; j < headers.size(); j++) {
                     rowData.put(headers.get(j), getCellValue(row.getCell(j), evaluator));
                 }
-                Date ctrl = ExcelUtils.extractDate(rowData.get(MasterData.COL_CONTROL_DATE));
-                Date cre = ExcelUtils.extractDate(rowData.get(MasterData.COL_CREATED));
-                if (isWithinRange(ctrl) || isWithinRange(cre)) rows.add(rowData);
+
+                Object rawCtrl = rowData.get(MasterData.COL_CONTROL_DATE);
+                Object rawCre = rowData.get(MasterData.COL_CREATED);
+                Date ctrl = ExcelUtils.extractDate(rawCtrl);
+                Date cre = ExcelUtils.extractDate(rawCre);
+
+                boolean within = isWithinRange(ctrl) || isWithinRange(cre);
+
+                if (within) {
+                    rows.add(rowData);
+                } else {
+                    // Se chegar aqui, as datas estão fora do intervalo escolhido
+                    System.out.println("Linha " + i + " ignorada. Datas: Created=" + cre + " | Changed=" + ctrl);
+                }
             }
+            System.out.println("Total de linhas lidas após filtro: " + rows.size());
         } catch (Exception e) { e.printStackTrace(); }
         return rows;
     }
@@ -49,10 +70,11 @@ public class ExcelReader {
                 if (r == null) continue;
 
                 Incident inc = new Incident();
-                inc.futureNowTicket = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_FUTURENOW_TICKET, -1)), evaluator));
-                if (inc.futureNowTicket == null || inc.futureNowTicket.isEmpty()) continue;
-
+                // O ID (INC...) é agora a nossa chave única
                 inc.id = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_ID, -1)), evaluator));
+
+                if (inc.id == null || inc.id.isEmpty()) continue;
+
                 inc.are = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_ARE, -1)), evaluator));
                 inc.status = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_STATUS, -1)), evaluator));
                 inc.description = ExcelUtils.canonical(getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_DESCRIPTION, -1)), evaluator));
@@ -61,9 +83,11 @@ public class ExcelReader {
                 inc.createdOn = getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_CREATED_ON, -1)), evaluator);
                 inc.lastChangedOn = getCellValue(r.getCell(colMap.getOrDefault(MasterData.HEADER_LAST_CHANGED_ON, -1)), evaluator);
 
-                snapshotMap.put(inc.futureNowTicket, inc);
+                snapshotMap.put(inc.id, inc);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return snapshotMap;
     }
 

@@ -1,7 +1,6 @@
 package ExcelCreator;
 
 import ExcelSnapshotWriter.ExcelSnapshotWriter;
-
 import javax.swing.*;
 import java.awt.*;
 import java.nio.file.*;
@@ -33,8 +32,9 @@ public class MainApp {
         for (Map<String, Object> row : statusRaw) {
             Incident newInc = mapper.mapFromStatusRow(row);
 
-            if (snapData.containsKey(newInc.futureNowTicket)) {
-                Incident currentInc = snapData.get(newInc.futureNowTicket);
+            // Agora a comparação é feita pelo campo ID (que contém o INC...)
+            if (snapData.containsKey(newInc.id)) {
+                Incident currentInc = snapData.get(newInc.id);
                 if (isIdentical(newInc, currentInc)) {
                     identical.add(newInc);
                 } else {
@@ -51,16 +51,14 @@ public class MainApp {
             String outPath = outDir.resolve("Migrated_Snapshot.xlsx").toString();
             new ExcelWriter().writeWithIdentical(outPath, migrated, newEntries, identical);
 
-            // Removi o JOptionPane daqui para o fluxo não parar
             System.out.println("Draft file generated at: " + outPath);
 
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(null, "Erro ao gerar Migrated_Snapshot: " + e.getMessage());
-            return; // Se falhou o rascunho, melhor não tentar o original
+            return;
         }
 
-        // Pergunta final
         int response = JOptionPane.showConfirmDialog(null,
                 "Migrated_Snapshot gerado com sucesso!\nDeseja atualizar o ficheiro Snapshot ORIGINAL agora?",
                 "Update Original Snapshot",
@@ -72,15 +70,13 @@ public class MainApp {
                 updater.updateExistingSnapshot(snapPath.toString(), migrated, newEntries);
                 JOptionPane.showMessageDialog(null, "Snapshot original atualizado com sucesso!");
             } catch (Exception e) {
-                // Se o ficheiro estiver aberto no Excel, o erro será apanhado aqui
-                JOptionPane.showMessageDialog(null, "ERRO: Certifique-se de que o ficheiro Excel está FECHADO antes de atualizar.\n" + e.getMessage());
+                JOptionPane.showMessageDialog(null, "ERRO: Certifique-se de que o ficheiro Excel está FECHADO.\n" + e.getMessage());
             }
         } else {
             JOptionPane.showMessageDialog(null, "Processo concluído. O Snapshot original não foi alterado.");
         }
     }
 
-    // Compara se os dados processados são iguais aos que já estão no snapshot
     private static boolean isIdentical(Incident newInc, Incident snapInc) {
         return Objects.equals(newInc.status, snapInc.status) &&
                 Objects.equals(newInc.are, snapInc.are) &&
@@ -96,6 +92,10 @@ public class MainApp {
 
     private static Date promptDate(String msg, String def) {
         String in = (String) JOptionPane.showInputDialog(null, msg, "Date Input", JOptionPane.QUESTION_MESSAGE, null, null, def);
-        try { return new java.text.SimpleDateFormat("dd/MM/yyyy").parse(in); } catch (Exception e) { return null; }
+        try {
+            return new java.text.SimpleDateFormat("dd/MM/yyyy").parse(in);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

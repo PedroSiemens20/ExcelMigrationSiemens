@@ -4,8 +4,6 @@ import ExcelCreator.AppConfig;
 import ExcelCreator.Incident;
 import ExcelCreator.MasterData;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.Date;
@@ -21,9 +19,6 @@ public class ExcelSnapshotWriter {
         this.config = config;
     }
 
-    /**
-     * Atualiza o ficheiro Snapshot original com as mudanças e novas entradas.
-     */
     public void updateExistingSnapshot(String filePath, List<Incident> migrated, List<Incident> newEntries) {
         System.out.println("Updating original snapshot: " + filePath);
 
@@ -32,28 +27,26 @@ public class ExcelSnapshotWriter {
 
             Sheet sheet = workbook.getSheet(config.snapshotSheetName);
             if (sheet == null) {
-                System.err.println("Sheet " + config.snapshotSheetName + " not found in Snapshot!");
+                System.err.println("Sheet " + config.snapshotSheetName + " not found!");
                 return;
             }
 
-            // 1. Mapear cabeçalhos para saber em que coluna escrever
+            // 1. Mapear cabeçalhos existentes
             Row headerRow = sheet.getRow(0);
             Map<String, Integer> colMap = new HashMap<>();
             for (Cell cell : headerRow) {
                 colMap.put(cell.getStringCellValue().trim(), cell.getColumnIndex());
             }
 
-            // 2. Criar estilos (ex: data)
             CellStyle dateStyle = workbook.createCellStyle();
             dateStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat(MasterData.DATE_PATTERN_DISPLAY));
 
-            // 3. Atualizar linhas existentes (Migrated)
+            // 2. Atualizar linhas existentes (Migrated) usando o ID como chave
             updateMigratedRows(sheet, colMap, migrated, dateStyle);
 
-            // 4. Adicionar novas linhas (New Entries)
+            // 3. Adicionar novas linhas
             appendNewRows(sheet, colMap, newEntries, dateStyle);
 
-            // 5. Salvar as alterações
             try (FileOutputStream fos = new FileOutputStream(filePath)) {
                 workbook.write(fos);
             }
@@ -67,21 +60,22 @@ public class ExcelSnapshotWriter {
     }
 
     private void updateMigratedRows(Sheet sheet, Map<String, Integer> colMap, List<Incident> migrated, CellStyle dateStyle) {
-        int ticketCol = colMap.getOrDefault(MasterData.HEADER_FUTURENOW_TICKET, -1);
-        if (ticketCol == -1) return;
+        // Agora usamos o HEADER_ID para procurar o INC...
+        Integer idCol = colMap.get(MasterData.HEADER_ID);
+        if (idCol == null) return;
 
         for (Incident inc : migrated) {
-            // Procurar a linha pelo ID do Ticket
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                Cell cell = row.getCell(ticketCol);
-                String currentTicket = (cell == null) ? "" : cell.toString().trim();
+                Cell cell = row.getCell(idCol);
+                String currentId = (cell == null) ? "" : cell.toString().trim();
 
-                if (currentTicket.equals(inc.futureNowTicket)) {
+                // Compara o ID do Excel com o ID do objeto (INC...)
+                if (currentId.equals(inc.id)) {
                     fillRowData(row, colMap, inc, dateStyle);
-                    break; // Encontrou, passa para o próximo incidente
+                    break;
                 }
             }
         }
@@ -96,9 +90,8 @@ public class ExcelSnapshotWriter {
     }
 
     private void fillRowData(Row row, Map<String, Integer> colMap, Incident inc, CellStyle dateStyle) {
-        // Esta função garante que cada campo vai para a coluna correta baseada no nome do cabeçalho
+        // Removemos a escrita do HEADER_FUTURENOW_TICKET que causava o erro
         writeSafely(row, colMap.get(MasterData.HEADER_ID), inc.id, null);
-        writeSafely(row, colMap.get(MasterData.HEADER_FUTURENOW_TICKET), inc.futureNowTicket, null);
         writeSafely(row, colMap.get(MasterData.HEADER_ARE), inc.are, null);
         writeSafely(row, colMap.get(MasterData.HEADER_CREATED_ON), inc.createdOn, dateStyle);
         writeSafely(row, colMap.get(MasterData.HEADER_REPORTED_BY), inc.reportedBy, null);

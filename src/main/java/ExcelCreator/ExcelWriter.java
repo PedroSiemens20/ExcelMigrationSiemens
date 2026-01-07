@@ -1,4 +1,5 @@
 package ExcelCreator;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.awt.Desktop;
@@ -12,20 +13,26 @@ public class ExcelWriter {
         try (Workbook workbook = new XSSFWorkbook()) {
             createSheet(workbook, "Migrated Data", migrated);
             createSheet(workbook, "New Entries", newEntries);
-            createSheet(workbook, "Already Up-to-Date", identical); // Nova Sheet
+            createSheet(workbook, "Already Up-to-Date", identical);
 
-            try (FileOutputStream fos = new FileOutputStream(outputPath)) { workbook.write(fos); }
+            try (FileOutputStream fos = new FileOutputStream(outputPath)) {
+                workbook.write(fos);
+            }
             Desktop.getDesktop().open(new File(outputPath));
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void createSheet(Workbook wb, String name, List<Incident> data) {
         Sheet sheet = wb.createSheet(name);
         Row header = sheet.createRow(0);
         CellStyle style = wb.createCellStyle();
-        Font font = wb.createFont(); font.setBold(true);
+        Font font = wb.createFont();
+        font.setBold(true);
         style.setFont(font);
 
+        // Escreve os novos headers (8 colunas)
         for (int i = 0; i < MasterData.OUTPUT_HEADERS.length; i++) {
             Cell c = header.createCell(i);
             c.setCellValue(MasterData.OUTPUT_HEADERS[i]);
@@ -38,17 +45,20 @@ public class ExcelWriter {
         int rowIdx = 1;
         for (Incident inc : data) {
             Row row = sheet.createRow(rowIdx++);
+            // Ordem sequencial conforme MasterData.OUTPUT_HEADERS
             writeCell(row, 0, inc.id, null);
-            writeCell(row, 1, inc.futureNowTicket, null);
-            writeCell(row, 3, inc.are, null);
-            writeCell(row, 4, inc.createdOn, dateStyle);
-            writeCell(row, 6, inc.reportedBy, null);
-            writeCell(row, 8, inc.lastChangedOn, dateStyle);
-            writeCell(row, 10, inc.priority, null);
-            writeCell(row, 11, inc.status, null);
-            writeCell(row, 12, inc.description, null);
+            writeCell(row, 1, inc.are, null);
+            writeCell(row, 2, inc.createdOn, dateStyle);
+            writeCell(row, 3, inc.reportedBy, null);
+            writeCell(row, 4, inc.lastChangedOn, dateStyle);
+            writeCell(row, 5, inc.priority, null);
+            writeCell(row, 6, inc.status, null);
+            writeCell(row, 7, inc.description, null);
         }
-        for(int i=0; i<MasterData.OUTPUT_HEADERS.length; i++) sheet.autoSizeColumn(i);
+
+        for (int i = 0; i < MasterData.OUTPUT_HEADERS.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
     }
 
     private void writeCell(Row row, int col, Object value, CellStyle dStyle) {
