@@ -8,7 +8,7 @@ public class ExcelUtils {
     private static final SimpleDateFormat SDF = new SimpleDateFormat(MasterData.DATE_PATTERN_DISPLAY);
 
     public static String canonical(Object v) {
-        if (v == null) return null;
+        if (v == null) return "";
         if (v instanceof String) return ((String) v).trim();
         if (v instanceof Number) {
             double d = ((Number) v).doubleValue();

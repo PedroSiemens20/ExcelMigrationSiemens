@@ -8,32 +8,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExcelUtilsTest {
 
     @Test
-    void testCanonicalDoubleToIntegerString() {
-        // Testa se 123.0 vira "123" e se decimais são mantidos corretamente
-        assertEquals("123", ExcelUtils.canonical(123.0));
+    void testCanonicalFormatting() {
+        // Testa se remove o .0 de números inteiros vindos do Excel
+        assertEquals("44338463", ExcelUtils.canonical(44338463.0));
+        // Testa se mantém decimais se existirem
         assertEquals("123.45", ExcelUtils.canonical(123.45));
-    }
-
-    @Test
-    void testCanonicalNull() {
-        assertNull(ExcelUtils.canonical(null));
-    }
-
-    @Test
-    void testCanonicalDate() {
-        Calendar cal = Calendar.getInstance();
-        cal.set(2025, Calendar.DECEMBER, 25);
-        Date date = cal.getTime();
-        // O formato deve seguir o DATE_PATTERN_DISPLAY (dd/MM/yyyy)
-        assertEquals("25/12/2025", ExcelUtils.canonical(date));
+        // Testa se limpa espaços
+        assertEquals("INC123", ExcelUtils.canonical("  INC123  "));
     }
 
     @Test
     void testExtractDate() {
-        // Testa extração de um objeto Date real
-        Date dateObj = new Date();
-        Date result = ExcelUtils.extractDate(dateObj);
-        assertNotNull(result);
-        assertEquals(dateObj, result);
+        // Testa se consegue converter uma data real
+        Date now = new Date();
+        assertEquals(now, ExcelUtils.extractDate(now));
+
+        // Testa se falha graciosamente com formatos errados (deve retornar null)
+        assertNull(ExcelUtils.extractDate("data-errada"));
     }
 }

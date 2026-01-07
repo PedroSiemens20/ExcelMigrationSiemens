@@ -23,8 +23,10 @@ class IncidentMapperTest {
     @Test
     void testFullMappingAndIdExtraction() {
         Map<String, Object> row = new HashMap<>();
-        row.put(MasterData.COL_ID, "INC44222821"); // Coluna "Incident"
-        row.put(MasterData.COL_ARE, "BUZ");
+        // Colunas conforme a nova estrutura (Amarela)
+        row.put(MasterData.COL_ID, "INC44222821");
+        row.put(MasterData.COL_TICKET_NR, "6000123456");
+        row.put(MasterData.COL_ARE, "ORA"); // Agora deve manter ORA
         row.put(MasterData.COL_STATUS, "In Process");
         row.put(MasterData.COL_REPORTED_BY, "Test User");
         row.put(MasterData.COL_PRIORITY, "2 - High");
@@ -32,26 +34,24 @@ class IncidentMapperTest {
 
         Incident result = mapper.mapFromStatusRow(row);
 
-        assertEquals("INC44222821", result.id, "O ID deve ser extraído da coluna Incident");
-        assertEquals("BUZ", result.are);
+        assertEquals("INC44222821", result.id, "O ID deve ser o INC");
+        assertEquals("6000123456", result.ticketNr, "O Ticket Nr deve ser o 6000...");
+        assertEquals("ORA", result.are, "O ARE deve ser mantido como no original");
         assertEquals("In Process", result.status);
         assertEquals("Test User", result.reportedBy);
     }
 
     @Test
-    void testAreNormalization() {
-        // Simular linha com ARE = ORA ou SIB para validar conversão para BUZ
-        Map<String, Object> rowORA = new HashMap<>();
-        rowORA.put(MasterData.COL_ARE, "ORA");
+    void testBugColumnsMapping() {
+        Map<String, Object> row = new HashMap<>();
+        row.put(MasterData.COL_REC_TECH, "x");
+        row.put(MasterData.COL_REC_BUSINESS, "");
 
-        Map<String, Object> rowSIB = new HashMap<>();
-        rowSIB.put(MasterData.COL_ARE, "SIB");
+        Incident result = mapper.mapFromStatusRow(row);
 
-        Incident resORA = mapper.mapFromStatusRow(rowORA);
-        Incident resSIB = mapper.mapFromStatusRow(rowSIB);
-
-        assertEquals(MasterData.ARE_BUZ, resORA.are, "ORA deve ser convertido para BUZ");
-        assertEquals(MasterData.ARE_BUZ, resSIB.are, "SIB deve ser convertido para BUZ");
+        // Verifica se as novas colunas de recorrência para os bugs estão a ser lidas
+        assertEquals("x", result.recurrentTech);
+        assertEquals("", result.recurrentBusiness);
     }
 
     @Test
@@ -61,19 +61,18 @@ class IncidentMapperTest {
 
         Incident result = mapper.mapFromStatusRow(row);
 
-        // Verifica se a regra de negócio de fecho foi aplicada
+        // Verifica se a regra de negócio do Status (IF/ELSE) está a funcionar
         assertEquals(MasterData.STATUS_CONFIRM_CLOSED, result.status, "Closed deve virar Confirm_Closed");
     }
 
     @Test
-    void testStatusStaysInProcess() {
-        // Como removeste a lógica complexa de datas para o In Process,
-        // este teste garante que o status "In Process" do Excel original é mantido.
+    void testOtherStatusRemainsUnchanged() {
         Map<String, Object> row = new HashMap<>();
         row.put(MasterData.COL_STATUS, "In Process");
 
         Incident result = mapper.mapFromStatusRow(row);
 
-        assertEquals("In Process", result.status, "Status In Process deve ser mantido como está");
+        // Garante que o código não mexe no que não deve (como o In Process)
+        assertEquals("In Process", result.status, "Outros status não devem ser alterados");
     }
 }

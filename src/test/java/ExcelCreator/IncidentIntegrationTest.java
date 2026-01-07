@@ -13,6 +13,7 @@ class IncidentIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        // Definimos a "Semana de Trabalho" para o teste
         Date start = sdf.parse("29/12/2025");
         Date end = sdf.parse("04/01/2026");
         config = new AppConfig(start, end, "VIM-Incidents");
@@ -20,60 +21,57 @@ class IncidentIntegrationTest {
     }
 
     @Test
-    void testBulkConversionFromStatusRows() {
-        // 1. Criamos uma "massa de dados" que simula várias linhas lidas do Excel de Status
-        List<Map<String, Object>> mockExcelRows = new ArrayList<>();
+    void testCompleteWorkflow() throws Exception {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        List<Map<String, Object>> mockRows = new ArrayList<>();
 
-        // Linha 1: Um ticket ORA (deve virar BUZ) e Status Closed (deve virar Confirm_Closed)
-        Map<String, Object> row1 = new HashMap<>();
-        row1.put(MasterData.COL_ID, "INC44000111");
-        row1.put(MasterData.COL_ARE, "ORA");
-        row1.put(MasterData.COL_STATUS, "Closed");
-        row1.put(MasterData.COL_CREATED, "30/12/2025");
-        row1.put(MasterData.COL_CONTROL_DATE, "30/12/2025");
-        mockExcelRows.add(row1);
+        // 1. LINHA BUG: Categoria Project Bug, Data antiga (Novembro)
+        Map<String, Object> rowBug = new HashMap<>();
+        rowBug.put(MasterData.COL_ID, "INC44000001");
+        rowBug.put(MasterData.COL_CATEGORY, "Project Bug");
+        rowBug.put(MasterData.COL_CONTROL_DATE, sdf.parse("15/11/2025"));
+        rowBug.put(MasterData.COL_REC_BUSINESS, "x");
+        mockRows.add(rowBug);
 
-        // Linha 2: Um ticket BUZ normal e In Process
-        Map<String, Object> row2 = new HashMap<>();
-        row2.put(MasterData.COL_ID, "INC44000222");
-        row2.put(MasterData.COL_ARE, "BUZ");
-        row2.put(MasterData.COL_STATUS, "In Process");
-        row2.put(MasterData.COL_CREATED, "31/12/2025");
-        row2.put(MasterData.COL_CONTROL_DATE, "02/01/2026");
-        mockExcelRows.add(row2);
+        // 2. LINHA INCIDENTE NOVO: Data na semana, Status Closed
+        Map<String, Object> rowNew = new HashMap<>();
+        rowNew.put(MasterData.COL_ID, "INC44000002");
+        rowNew.put(MasterData.COL_CATEGORY, "Q&A");
+        rowNew.put(MasterData.COL_STATUS, "Closed");
+        rowNew.put(MasterData.COL_CONTROL_DATE, sdf.parse("30/12/2025")); // Na semana
+        mockRows.add(rowNew);
 
-        // Linha 3: Um ticket SIB (deve virar BUZ)
-        Map<String, Object> row3 = new HashMap<>();
-        row3.put(MasterData.COL_ID, "INC44000333");
-        row3.put(MasterData.COL_ARE, "SIB");
-        row3.put(MasterData.COL_STATUS, "In Process");
-        row3.put(MasterData.COL_CREATED, "01/01/2026");
-        row3.put(MasterData.COL_CONTROL_DATE, "01/01/2026");
-        mockExcelRows.add(row3);
+        // 3. LINHA FORA DA DATA: Incidente normal mas de Novembro
+        Map<String, Object> rowOld = new HashMap<>();
+        rowOld.put(MasterData.COL_ID, "INC44000003");
+        rowOld.put(MasterData.COL_CONTROL_DATE, sdf.parse("01/11/2025"));
+        mockRows.add(rowOld);
 
-        // 2. Executamos a conversão de todas as linhas (como o MainApp faz)
-        List<Incident> processedIncidents = new ArrayList<>();
-        for (Map<String, Object> row : mockExcelRows) {
-            processedIncidents.add(mapper.mapFromStatusRow(row));
+        // --- EXECUÇÃO DA LÓGICA (Simulando o MainApp) ---
+        List<Incident> bugsFound = new ArrayList<>();
+        List<Incident> inScope = new ArrayList<>();
+
+        for (Map<String, Object> row : mockRows) {
+            Incident inc = mapper.mapFromStatusRow(row);
+
+            if (BugProcessor.isBug(inc.category)) {
+                bugsFound.add(inc);
+            }
+
+            Date d = ExcelUtils.extractDate(inc.lastChangedOn);
+            if (d != null && !d.before(config.startDate) && !d.after(config.endDate)) {
+                inScope.add(inc);
+            }
         }
 
-        // 3. Verificações (Asserções)
-        assertEquals(3, processedIncidents.size(), "Devem ter sido processadas 3 linhas");
+        // --- VERIFICAÇÕES ---
 
-        // Validar Linha 1 (ORA -> BUZ, Closed -> Confirm_Closed)
-        Incident i1 = processedIncidents.get(0);
-        assertEquals("INC44000111", i1.id);
-        assertEquals(MasterData.ARE_BUZ, i1.are);
-        assertEquals(MasterData.STATUS_CONFIRM_CLOSED, i1.status);
+        // O Bug deve ser encontrado mesmo com data de Novembro
+        assertEquals(1, bugsFound.size(), "O Bug deve ser capturado independentemente da data");
+        assertEquals("x", bugsFound.get(0).recurrentBusiness);
 
-        // Validar Linha 2 (Manter BUZ e In Process)
-        Incident i2 = processedIncidents.get(1);
-        assertEquals("INC44000222", i2.id);
-        assertEquals("BUZ", i2.are);
-        assertEquals("In Process", i2.status);
-
-        // Validar Linha 3 (SIB -> BUZ)
-        Incident i3 = processedIncidents.get(2);
-        assertEquals(MasterData.ARE_BUZ, i3.are);
+        // Apenas 1 incidente deve estar "na semana" (o INC44...002)
+        assertEquals(1, inScope.size(), "Apenas incidentes na semana devem ser processados para migração");
+        assertEquals(MasterData.STATUS_CONFIRM_CLOSED, inScope.get(0).status, "Status Closed deve ser convertido");
     }
 }
