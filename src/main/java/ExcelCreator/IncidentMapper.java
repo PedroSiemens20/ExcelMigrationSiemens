@@ -30,6 +30,19 @@ public class IncidentMapper {
             incident.status = rawStatus;
         }
 
+        //Regra: Se a coluna Incident estiver vazia vamos usar a Coluna Ticket Nr, se amabs vazias manda um aviso para a consola
+        if (incident.id == null || incident.id.trim().isEmpty()) {
+            if (incident.ticketNr != null && !incident.ticketNr.trim().isEmpty()) {
+                incident.id = incident.ticketNr;
+            } else {
+                System.out.println("WARNING: Row with no Incident ID and no Ticket Nr. found.");
+            }
+        }
+
+
+
+
+
         return incident;
     }
 }

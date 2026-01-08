@@ -4,7 +4,7 @@ public class MasterData {
     public static final String STATUS_SHEET = "VIM";
     public static final String DEFAULT_SNAPSHOT_SHEET = "VIM-Incidents";
     public static final String DATE_PATTERN_DISPLAY = "dd/MM/yyyy";
-    public static final String DEFAULT_START_DATE = "29/12/2025";
+    public static final String DEFAULT_START_DATE = "01/12/2025";
     public static final String DEFAULT_END_DATE = "04/01/2026";
 
     // --- COLUNAS DO STATUS (Leitura - Amarelo) ---
